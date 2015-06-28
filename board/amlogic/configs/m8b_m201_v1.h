@@ -238,6 +238,7 @@
         "if unifykey get usid; then  "\
             "setenv bootargs ${bootargs} androidboot.serialno=${usid};"\
         "fi;"\
+	"run bootsd;"\
         "imgread kernel boot ${loadaddr};"\
         "bootm;"\
         "run recovery\0" \
@@ -257,6 +258,16 @@
 				"fi;\0" \
     \
 	"usb_burning=update 1000\0" \
+    "bootsd="\
+		"setenv bootargs ${bootargs} reboot_mode=${reboot_mode}; "\
+		"if test ${reboot_mode} != switch_system; then "\
+			"if mmcinfo; then "\
+				"if fatload mmc 0 ${loadaddr} kernel.img; then "\
+					"setenv bootargs ${bootargs} bootfromsd; " \
+					"bootm; " \
+				"fi;" \
+			"fi;" \
+		"fi;\0" \
     "sdc_burning=sdc_burn ${sdcburncfg}\0"
 
 

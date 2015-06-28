@@ -68,6 +68,11 @@ int do_get_rebootmode (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 			setenv("reboot_mode","update");
 			break;
 		}
+		case AMLOGIC_SYSTEM_SWITCH_REBOOT:
+		{
+			setenv("reboot_mode","switch_system");
+			break;
+		}
 		case MESON_USB_BURNER_REBOOT:
 		{
 			setenv("reboot_mode","usb_burning");
