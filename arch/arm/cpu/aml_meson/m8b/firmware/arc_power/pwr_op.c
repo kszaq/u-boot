@@ -1020,6 +1020,98 @@ unsigned int detect_key(unsigned int flags)
     return ret;
 }
 
+unsigned int detect_key1(unsigned int flags)
+{
+    int delay_cnt   = 0;
+    int power_status;
+    int prev_status;
+    int battery_voltage;
+    int ret = FLAG_WAKEUP_PWRKEY;
+    int low_bat_cnt = 0;
+
+#ifdef CONFIG_IR_REMOTE_WAKEUP
+    //backup the remote config (on arm)
+    backup_remote_register();
+    //set the ir_remote to 32k mode at ARC
+    init_custom_trigger();
+#endif
+
+    writel(readl(P_AO_GPIO_O_EN_N)|(1 << 3),P_AO_GPIO_O_EN_N);
+    //writel(readl(P_AO_RTI_PULL_UP_REG)|(1 << 3)|(1<<19),P_AO_RTI_PULL_UP_REG);
+#ifdef CONFIG_AML1218
+    prev_status = aml1218_get_charge_status();
+#endif
+    do {
+        /*
+         * when extern power status has changed, we need break
+        * suspend loop and resume system.
+         */
+#ifdef CONFIG_AML1218
+        power_status = aml1218_get_charge_status();
+        if (power_status ^ prev_status) {
+            if (flags == 0x87654321) {      // suspend from uboot
+                ret = FLAG_WAKEUP_PWROFF;
+            }
+            exit_reason = -1;
+            break;
+        }
+        if (power_status ^ prev_status) {
+            exit_reason = 1;
+            break;
+        }
+        delay_cnt++;
+    #if defined(CONFIG_ENABLE_PMU_WATCHDOG) || defined(CONFIG_RESET_TO_SYSTEM)
+        //pmu_feed_watchdog(flags);
+    #endif
+        if (delay_cnt >= 3000) {
+            if (flags != 0x87654321 && !power_status) {
+                /*
+                 * when battery voltage is too low but no power supply and suspended from kernel,
+                 * we need to break suspend loop to resume system, then system will shut down
+                 */
+                battery_voltage = aml1218_get_battery_voltage();
+                if (((battery_voltage & 0xffff) < 3480) && (battery_voltage & 0xffff)) {
+                    low_bat_cnt++;
+                    if (low_bat_cnt >= 3) {
+                        exit_reason = (battery_voltage & 0xffff0000) | 2;
+                        break;
+                    }
+                } else {
+                    low_bat_cnt = 0;
+                }
+                if ((readl(0xc8100088) & (1<<8))) {        // power key
+                    exit_reason = 3;
+                    break;
+                }
+            }
+            delay_cnt = 0;
+        }
+#endif
+
+#ifdef CONFIG_IR_REMOTE_WAKEUP
+        if(readl(P_AO_RTI_STATUS_REG2) == 0x4853ffff){
+            break;
+        }
+        if(remote_detect_key()){
+            exit_reason = 6;
+            break;
+        }
+#endif
+
+  
+
+    } while (!(readl(0xc8100088) & (1<<8)));            // power key
+
+    writel(1<<8,0xc810008c);
+    writel(gpio_sel0, 0xc8100084);
+    writel(gpio_mask,0xc8100080);
+
+#ifdef CONFIG_IR_REMOTE_WAKEUP
+    resume_remote_register();
+#endif
+    return ret;
+}
+
 void arc_pwr_register(struct arc_pwr_op *pwr_op)
 {
  #ifdef CONFIG_AML1218
@@ -1042,6 +1134,7 @@ void arc_pwr_register(struct arc_pwr_op *pwr_op)
     pwr_op->power_on_at_32K_1   = 0;//m8b_pwm_power_on_at_32K_1;
 #endif
 	pwr_op->detect_key			= detect_key;
+	pwr_op->detect_key1                     = detect_key1;
 
 }
 

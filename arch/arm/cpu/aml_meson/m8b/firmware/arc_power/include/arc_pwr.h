@@ -25,6 +25,7 @@ struct arc_pwr_op
 	void (*shut_down)(void);
 
 	unsigned int (*detect_key)(unsigned int);
+	unsigned int (*detect_key1)(unsigned int);
 };
 
 /*You can add param here for more */

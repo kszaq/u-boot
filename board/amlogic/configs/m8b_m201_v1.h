@@ -32,7 +32,7 @@
 //#define CONFIG_VIDEO_AMLTVOUT 1
 //Enable LCD output
 //#define CONFIG_VIDEO_AMLLCD
-#define LCD_BPP LCD_COLOR16
+#define LCD_BPP LCD_COLOR24
 
 #define CONFIG_ACS
 #ifdef CONFIG_ACS
@@ -59,6 +59,16 @@
 #define CONFIG_AML_HDMI_TX  1
 #define CONFIG_OSD_SCALE_ENABLE 1
 
+#if defined(CONFIG_VIDEO_AMLTVOUT)
+#define CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT	1
+
+#define CONFIG_CVBS_CHINASARFT		0x0
+#define CONFIG_CVBS_CHINATELECOM	0x1
+#define CONFIG_CVBS_CHINAMOBILE		0x2
+#define CONFIG_CVBS_PERFORMANCE_ACTIVED	CONFIG_CVBS_CHINASARFT
+
+#endif
+
 //Enable storage devices
 #define CONFIG_CMD_SF    1
 #if defined(CONFIG_CMD_SF)
@@ -67,7 +77,8 @@
 #endif /*CONFIG_CMD_SF*/
 
 //Amlogic SARADC support
-//#define CONFIG_SARADC 1
+#define CONFIG_SARADC 1
+#define CONFIG_CMD_SARADC
 #define CONFIG_EFUSE 1
 //#define CONFIG_MACHID_CHECK 1
 #define CONFIG_CMD_SUSPEND 1
@@ -157,8 +168,8 @@
 	"video_dev=tvout\0" \
 	"display_width=1920\0" \
 	"display_height=1080\0" \
-	"display_bpp=16\0" \
-	"display_color_format_index=16\0" \
+	"display_bpp=24\0" \
+	"display_color_format_index=24\0" \
 	"display_layer=osd2\0" \
 	"display_color_fg=0xffff\0" \
 	"display_color_bg=0\0" \
@@ -183,6 +194,7 @@
 	"store=0\0"\
 	"wipe_data=success\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
+	"cvbs_drv=0\0"\
 	"preboot="\
         "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
         "if itest ${upgrade_step} == 1; then  "\
@@ -191,11 +203,15 @@
         "run prepare;"\
         "run storeargs;"\
         "get_rebootmode; clear_rebootmode; echo reboot_mode=${reboot_mode};" \
-        "run update_ir; " \
+        "run update_key; " \
         "run switch_bootmode\0" \
     \
-    "update_ir="\
-        "if irdetect; then run update; fi\0" \
+    "update_key="\
+        "saradc open 0; " \
+        "if saradc get_in_range 0 0x50; then " \
+            "msleep 50; " \
+            "if saradc get_in_range 0 0x50; then echo update by key...; run update; fi;" \
+        "fi\0" \
     \
    	"update="\
         /*first try usb burning, second sdc_burn, third autoscr, last recovery*/\
@@ -212,7 +228,7 @@
         "fi;\0"\
     \
    	"storeargs="\
-        "setenv bootargs ${initargs} vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${cecconfig}\0"\
+        "setenv bootargs ${initargs} cvbsdrv=${cvbs_drv} vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${cecconfig}\0"\
     \
 	"switch_bootmode="\
         "if test ${reboot_mode} = factory_reset; then "\
@@ -229,8 +245,9 @@
     \
     "prepare="\
         "logo size ${outputmode}; video open; video clear; video dev open ${outputmode};"\
-        "imgread pic logo bootup ${loadaddr_logo}; "\
-        "bmp display ${bootup_offset}; bmp scale;"\
+        "imgread res logo ${loadaddr_logo}; "\
+        "unpackimg ${loadaddr_logo}; "\
+        "logo source ${outputmode}; bmp display ${bootup_offset}; bmp scale;"\
         "\0"\
 	\
 	"storeboot="\

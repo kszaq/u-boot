@@ -509,6 +509,8 @@ void borad_power_init(void)
 	//power on VCC5V
 	gpio_amlogic_requst(NULL, GPIODV_29);
 	gpio_amlogic_direction_output(NULL, GPIODV_29, 0);
+        gpio_amlogic_requst(NULL, GPIOAO_1);
+        gpio_amlogic_direction_output(NULL, GPIOAO_1, 1);
 	
 }
 int board_init(void)

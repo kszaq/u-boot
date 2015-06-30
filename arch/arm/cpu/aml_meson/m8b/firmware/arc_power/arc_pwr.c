@@ -284,6 +284,7 @@ void enter_power_down()
 	int i;
 	unsigned int uboot_cmd_flag=readl(P_AO_RTI_STATUS_REG2);//u-boot suspend cmd flag
 	unsigned int vcin_state = 0;
+	unsigned int uboot_cmd_flag1=readl(P_AO_RTI_STATUS_REG1);
 
     int voltage   = 0;
     int axp_ocv = 0;
@@ -291,6 +292,7 @@ void enter_power_down()
 	// First, we disable all memory accesses.
 
 	f_serial_puts("step 1\n");
+	serial_put_hex(uboot_cmd_flag1, 32);
 
 	asm(".long 0x003f236f"); //add sync instruction.
 
@@ -349,7 +351,12 @@ void enter_power_down()
 	if(wdt_flag)
 		writel(readl(P_WATCHDOG_TC)&(~(1<<19)),P_WATCHDOG_TC);
 #if 1
-	vcin_state = p_arc_pwr_op->detect_key(uboot_cmd_flag);
+	if(uboot_cmd_flag1==0){
+                vcin_state = p_arc_pwr_op->detect_key1(uboot_cmd_flag);
+ 
+        }
+        else
+		vcin_state = p_arc_pwr_op->detect_key(uboot_cmd_flag);
 #else
 	for(i=0;i<10;i++)
 	{
@@ -420,6 +427,14 @@ void enter_power_down()
 	f_serial_puts("restart arm\n");
 	wait_uart_empty();
 	restart_arm();
+	if(uboot_cmd_flag1==0){
+               setbits_le32(P_WATCHDOG_TC,1<<WATCHDOG_ENABLE_BIT);
+               writel((1<<22) | (3<<24), P_WATCHDOG_TC);
+               
+                       f_serial_puts("sssss   restart arm\n");
+                               serial_put_hex(readl(P_WATCHDOG_TC),32);
+       //      while(1);
+       }
 
     if (uboot_cmd_flag == 0x87654321) {
         writel(0,P_AO_RTI_STATUS_REG2);
@@ -449,7 +464,7 @@ int main(void)
 
 	arc_param->serial_disable=0;
 	serial_put_hex(readl(P_AO_RTI_STATUS_REG1),32);
-	writel(0,P_AO_RTI_STATUS_REG1);
+//	writel(0,P_AO_RTI_STATUS_REG1);
 	f_serial_puts("sleep .......\n");
 	arc_param->serial_disable=0;
 
@@ -490,6 +505,7 @@ int main(void)
 
 	
 //	asm("SLEEP");
+	writel(0,P_AO_RTI_STATUS_REG1);
 
 
 	while(1){

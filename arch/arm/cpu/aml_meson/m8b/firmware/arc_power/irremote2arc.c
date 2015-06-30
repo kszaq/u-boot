@@ -1,10 +1,11 @@
 
 #ifdef CONFIG_IR_REMOTE_WAKEUP
 
-#define IR_POWER_KEY    0xe51afb04
+#define IR_POWER_KEY    0xae517f80
 #define IR_POWER_KEY_MASK 0xffffffff
 unsigned int kk[] = {
-        0xe51afb04,
+	0xae517f80,
+	0xeb14ff00	
 };
 #define IR_CONTROL_HOLD_LAST_KEY   (1<<6)
 typedef struct reg_remote
@@ -143,7 +144,7 @@ int remote_detect_key(){
     unsigned power_key;
     if(((readl(P_AO_MF_IR_DEC_STATUS))>>3) & 0x1){
 	power_key = readl(P_AO_MF_IR_DEC_FRAME);
-	if((power_key&IR_POWER_KEY_MASK) == kk[DECODEMODE_NEC]){
+	if(((power_key&IR_POWER_KEY_MASK) == kk[DECODEMODE_NEC]) || (power_key == 0xeb14ff00)){
 	    return 1;
         }
     }
