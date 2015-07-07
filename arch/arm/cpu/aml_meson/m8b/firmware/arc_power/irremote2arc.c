@@ -1,10 +1,10 @@
 
 #ifdef CONFIG_IR_REMOTE_WAKEUP
 
-#define IR_POWER_KEY    0xae517f80
+#define IR_POWER_KEY    0xbf40fe01
 #define IR_POWER_KEY_MASK 0xffffffff
 unsigned int kk[] = {
-	0xae517f80,
+	0xbf40fe01,
 	0xeb14ff00	
 };
 #define IR_CONTROL_HOLD_LAST_KEY   (1<<6)
