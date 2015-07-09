@@ -1032,21 +1032,60 @@ unsigned int detect_key1(unsigned int flags)
 #ifdef CONFIG_IR_REMOTE_WAKEUP
     //backup the remote config (on arm)
     backup_remote_register();
+#ifndef CONFIG_NON_32K
     //set the ir_remote to 32k mode at ARC
     init_custom_trigger();
+#endif // #ifndef CONFIG_NON_32K
 #endif
 
     writel(readl(P_AO_GPIO_O_EN_N)|(1 << 3),P_AO_GPIO_O_EN_N);
     //writel(readl(P_AO_RTI_PULL_UP_REG)|(1 << 3)|(1<<19),P_AO_RTI_PULL_UP_REG);
+
 #ifdef CONFIG_AML1218
     prev_status = aml1218_get_charge_status();
 #endif
+
+#ifdef CONFIG_NON_32K
+	timera_intr_init();
+#endif
+/*	while(1)
+			{serial_put_hex(readl(P_AO_RTI_STATUS_REG1),32);
+		f_serial_puts("    *^\n");
+//		udelay__(2000);
+		}
+*/
+	writel(readl(0xc8100084) | (1<<18) | (1<<16) | (0x3<<0),0xc8100084);
+	writel(1<<8,0xc810008c); //clear intr
+
+	writel(readl(0xc8100080) | (1<<24),0xc8100080);//set gpio intr as fiq
+	writel(readl(0xc8100080) | (1<<8),0xc8100080);//set gpio intr as fiq
+
+#ifdef CONFIG_CEC_WAKEUP
+//    udelay__(10000);
+    if(hdmi_cec_func_config & 0x1){
+        cec_power_on();
+        cec_msg.log_addr = 4;
+        remote_cec_hw_reset();
+        cec_node_init();
+    }
+#endif
     do {
+		//serial_put_hex(readl(P_AO_RTI_STATUS_REG1),32);
+		//f_serial_puts("** \n");
         /*
          * when extern power status has changed, we need break
-        * suspend loop and resume system.
+         * suspend loop and resume system.
          */
+#ifdef CONFIG_CEC_WAKEUP
+        if(hdmi_cec_func_config & 0x1){
+          cec_handler();	
+          if(cec_msg.cec_power == 0x1){  //cec power key
+                break;
+            }
+        }
+#endif
 #ifdef CONFIG_AML1218
+	#ifndef CONFIG_ALWAYS_POWER_ON		/* only for tablet */
         power_status = aml1218_get_charge_status();
         if (power_status ^ prev_status) {
             if (flags == 0x87654321) {      // suspend from uboot
@@ -1060,6 +1099,7 @@ unsigned int detect_key1(unsigned int flags)
             break;
         }
         delay_cnt++;
+
     #if defined(CONFIG_ENABLE_PMU_WATCHDOG) || defined(CONFIG_RESET_TO_SYSTEM)
         //pmu_feed_watchdog(flags);
     #endif
@@ -1086,8 +1126,8 @@ unsigned int detect_key1(unsigned int flags)
             }
             delay_cnt = 0;
         }
+	#endif		/* CONFIG_ALWAYS_POWER_ON */
 #endif
-
 #ifdef CONFIG_IR_REMOTE_WAKEUP
         if(readl(P_AO_RTI_STATUS_REG2) == 0x4853ffff){
             break;
@@ -1097,17 +1137,31 @@ unsigned int detect_key1(unsigned int flags)
             break;
         }
 #endif
+#ifdef CONFIG_CEC_WAKEUP
+        if(hdmi_cec_func_config & 0x1){
+          cec_handler();	
+          if(cec_msg.cec_power == 0x1){  //cec power key
+                break;
+            }
+        }
+#endif
 
-  
+		if(readl(P_AO_RTI_STATUS_REG1) == 0x1234abcd)
+			break;//power key
+    } while(!(readl(0xc8100088) & (1<<8)));            // power key
 
-    } while (!(readl(0xc8100088) & (1<<8)));            // power key
+	clean_irq_mask();
+	extern disable_irq();
+	disable_irq();
 
     writel(1<<8,0xc810008c);
     writel(gpio_sel0, 0xc8100084);
     writel(gpio_mask,0xc8100080);
 
 #ifdef CONFIG_IR_REMOTE_WAKEUP
+#ifndef CONFIG_NON_32K
     resume_remote_register();
+#endif
 #endif
     return ret;
 }
