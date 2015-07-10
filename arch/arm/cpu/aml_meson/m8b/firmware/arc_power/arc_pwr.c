@@ -284,7 +284,7 @@ void enter_power_down()
 	int i;
 	unsigned int uboot_cmd_flag=readl(P_AO_RTI_STATUS_REG2);//u-boot suspend cmd flag
 	unsigned int vcin_state = 0;
-	unsigned int uboot_cmd_flag1=readl(P_AO_RTI_STATUS_REG1);
+	unsigned int uboot_cmd_flag1=0;//readl(P_AO_RTI_STATUS_REG1);
 
     int voltage   = 0;
     int axp_ocv = 0;
