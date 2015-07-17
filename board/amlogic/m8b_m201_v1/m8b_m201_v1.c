@@ -360,8 +360,8 @@ struct amlogic_usb_config g_usb_config_m6_skt_h={
 
 #define msleep(a) udelay(a * 1000)
 
-#define IR_POWER_KEY    0xe51afb04
-#define IR_MENU_KEY		0xac53fb04
+#define IR_POWER_KEY    0xfe01fe01
+#define IR_MENU_KEY		0xa45bfe01
 #define IR_POWER_KEY_MASK 0xffffffff
 
 typedef struct reg_remote
